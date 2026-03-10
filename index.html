@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<title>Simulador de Ecuaciones Diferenciales</title>
+
+<style>
+
+:root{
+--bg:#f4f6f8;
+--panel:#ffffff;
+--text:#1f2937;
+--canvas:#e5e7eb;
+--accent:#2563eb;
+}
+
+.dark{
+--bg:#0f172a;
+--panel:#1e293b;
+--text:#ffffff;
+--canvas:#020617;
+--accent:#38bdf8;
+}
+
+body{
+margin:0;
+font-family:Segoe UI;
+background:var(--bg);
+color:var(--text);
+text-align:center;
+}
+
+h1{
+margin-top:20px;
+}
+
+.container{
+display:flex;
+justify-content:center;
+gap:30px;
+margin-top:20px;
+}
+
+.panel{
+background:var(--panel);
+padding:20px;
+border-radius:10px;
+width:280px;
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+
+canvas{
+background:var(--canvas);
+border-radius:10px;
+}
+
+input[type=range]{
+width:100%;
+}
+
+.valor{
+color:var(--accent);
+font-weight:bold;
+}
+
+.ecuacion{
+margin-top:15px;
+padding:12px;
+border-radius:6px;
+background:rgba(0,0,0,0.05);
+font-family:monospace;
+text-align:left;
+white-space:pre-line;
+}
+
+/* SWITCH */
+
+.theme-switch{
+position:fixed;
+top:20px;
+right:20px;
+}
+
+.switch{
+position:relative;
+display:inline-block;
+width:50px;
+height:26px;
+}
+
+.switch input{
+opacity:0;
+width:0;
+height:0;
+}
+
+.slider{
+position:absolute;
+cursor:pointer;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:#ccc;
+transition:.4s;
+border-radius:26px;
+}
+
+.slider:before{
+position:absolute;
+content:"";
+height:20px;
+width:20px;
+left:3px;
+bottom:3px;
+background:white;
+transition:.4s;
+border-radius:50%;
+}
+
+input:checked + .slider{
+background:var(--accent);
+}
+
+input:checked + .slider:before{
+transform:translateX(24px);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="theme-switch">
+
+<label class="switch">
+<input type="checkbox" onclick="toggleTheme()">
+<span class="slider"></span>
+</label>
+
+</div>
+
+<h1>Simulador de Movimiento Suavizado</h1>
+
+<p>Arrastra el círculo azul o haz clic para mover el destino.</p>
+
+<div class="container">
+
+<div class="panel">
+
+<h3>Parámetro</h3>
+
+<label>Constante k</label>
+
+<input type="range" min="0.01" max="0.8" step="0.01" value="0.05" id="k">
+
+<p>k = <span class="valor" id="kvalor">0.05</span></p>
+
+<div class="ecuacion" id="ecuacionPanel"></div>
+
+</div>
+
+<canvas id="canvas" width="600" height="400"></canvas>
+
+<div class="panel">
+
+<h3>Gráfica exponencial</h3>
+
+<canvas id="grafica" width="250" height="200"></canvas>
+
+<p>Solución de la ecuación diferencial</p>
+
+</div>
+
+</div>
+
+<script>
+
+function toggleTheme(){
+document.body.classList.toggle("dark")
+}
+
+const canvas=document.getElementById("canvas")
+const ctx=canvas.getContext("2d")
+
+const graf=document.getElementById("grafica")
+const gctx=graf.getContext("2d")
+
+let obj={
+x:150,
+y:200,
+radius:20
+}
+
+let destino={
+x:500,
+y:200
+}
+
+let x0=obj.x
+
+let trayectoria=[]
+let dragging=false
+
+canvas.addEventListener("mousedown",e=>{
+
+let rect=canvas.getBoundingClientRect()
+let mx=e.clientX-rect.left
+let my=e.clientY-rect.top
+
+let dx=mx-obj.x
+let dy=my-obj.y
+
+if(Math.sqrt(dx*dx+dy*dy)<obj.radius){
+
+dragging=true
+
+}else{
+
+destino.x=mx
+destino.y=my
+
+}
+
+})
+
+canvas.addEventListener("mouseup",()=>{
+
+dragging=false
+x0=obj.x
+
+})
+
+canvas.addEventListener("mousemove",e=>{
+
+if(dragging){
+
+let rect=canvas.getBoundingClientRect()
+
+obj.x=e.clientX-rect.left
+obj.y=e.clientY-rect.top
+
+trayectoria=[]
+x0=obj.x
+
+}
+
+})
+
+function update(){
+
+let k=parseFloat(document.getElementById("k").value)
+
+document.getElementById("kvalor").innerText=k.toFixed(2)
+
+if(!dragging){
+
+obj.x+=-k*(obj.x-destino.x)
+obj.y+=-k*(obj.y-destino.y)
+
+trayectoria.push({x:obj.x,y:obj.y})
+
+}
+
+updateEquation()
+
+}
+
+function updateEquation(){
+
+let k=parseFloat(document.getElementById("k").value)
+
+let paso1="1) dx/dt = -"+k.toFixed(2)+"(x - "+destino.x.toFixed(0)+")"
+
+let paso2="2) dx/(x-xd) = -"+k.toFixed(2)+" dt"
+
+let paso3="3) ln|x-xd| = -"+k.toFixed(2)+"t + C"
+
+let paso4="4) x(t) = xd + (x0-xd)e^(-kt)"
+
+let paso5="5) x(t) = "+destino.x.toFixed(0)+" + ("+x0.toFixed(0)+" - "+destino.x.toFixed(0)+")e^(-"+k.toFixed(2)+"t)"
+
+let paso6="6) x(t) = "+destino.x.toFixed(0)+" + "+(x0-destino.x).toFixed(0)+"e^(-"+k.toFixed(2)+"t)"
+
+document.getElementById("ecuacionPanel").innerText=
+
+paso1+"\n\n"+
+paso2+"\n\n"+
+paso3+"\n\n"+
+paso4+"\n\n"+
+paso5+"\n\n"+
+paso6
+
+}
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+ctx.strokeStyle="#94a3b8"
+
+ctx.beginPath()
+
+for(let i=0;i<trayectoria.length;i++){
+
+let p=trayectoria[i]
+
+if(i==0) ctx.moveTo(p.x,p.y)
+else ctx.lineTo(p.x,p.y)
+
+}
+
+ctx.stroke()
+
+ctx.fillStyle="red"
+
+ctx.beginPath()
+ctx.arc(destino.x,destino.y,10,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillStyle="blue"
+
+ctx.beginPath()
+ctx.arc(obj.x,obj.y,obj.radius,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillStyle="black"
+ctx.fillText("Destino",destino.x-25,destino.y-15)
+
+}
+
+function drawGraph(){
+
+gctx.clearRect(0,0,graf.width,graf.height)
+
+let k=parseFloat(document.getElementById("k").value)
+
+gctx.beginPath()
+
+for(let t=0;t<100;t++){
+
+let y=Math.exp(-k*t)
+
+let x=t*2
+let yPos=180-y*150
+
+if(t==0) gctx.moveTo(x,yPos)
+else gctx.lineTo(x,yPos)
+
+}
+
+gctx.strokeStyle="#2563eb"
+gctx.stroke()
+
+}
+
+function loop(){
+
+update()
+draw()
+drawGraph()
+
+requestAnimationFrame(loop)
+
+}
+
+loop()
+
+</script>
+
+</body>
+
+</html>
